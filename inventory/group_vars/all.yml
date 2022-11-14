@@ -1,0 +1,4 @@
+---
+netbox_url: "http://172.20.0.70:8000"
+netbox_token: "0123456789abcdef0123456789abcdef01234567"
+netbox_validate_certs: false

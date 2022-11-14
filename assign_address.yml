@@ -1,0 +1,94 @@
+---
+- name: VMのIPアドレス払い出し
+  hosts: localhost
+
+  tasks:
+    - name: パラメータの読み込み
+      include_vars: vars/vm_parameter.yml
+
+    - name: ユーザから指定されたプレフィックス名からIDを取得
+      set_fact:
+        __prefix_id: >-
+          {{
+            query(
+              'netbox.netbox.nb_lookup',
+              'prefixes',
+              api_filter='prefix=' + __prefix,
+              api_endpoint=netbox_url,
+              token=netbox_token,
+              validate_certs=netbox_validate_certs
+            )[0].value.id
+          }}
+        
+    - name: 次の空IPアドレスを取得
+      uri:
+        url: "{{ netbox_url }}/api/ipam/prefixes/{{ __prefix_id }}/available-ips/?limit=1"
+        method: GET
+        headers:
+          Authorization: "Token {{ netbox_token }}"
+      register: __next_available_address
+
+    - name: IPアドレスを変数定義
+      set_fact:
+        __assigned_address: "{{ __next_available_address.json[0].address | ansible.utils.ipaddr('address') }}"
+
+    - name: アドレスが使用中かチェック
+      command: "ping -c 1 {{ __assigned_address }}"
+      changed_when: false
+      failed_when: __ping_command.rc not in [0, 1]
+      register: __ping_command
+
+    - name: アドレスが使用中の場合、失敗
+      fail:
+        msg: "{{ __assigned_address }} is already used."
+      when: __ping_command.rc == 0
+
+    - name: VMオブジェクト作成
+      netbox.netbox.netbox_virtual_machine:
+        netbox_url: "{{ netbox_url }}"
+        netbox_token: "{{ netbox_token }}"
+        validate_certs: "{{ netbox_validate_certs }}"
+        state: present
+        data:
+          name: "{{ __hostname }}"
+          cluster: "{{ __cluster }}"
+
+    - name: VMインターフェースオブジェクト作成
+      netbox.netbox.netbox_vm_interface:
+        netbox_url: "{{ netbox_url }}"
+        netbox_token: "{{ netbox_token }}"
+        validate_certs: "{{ netbox_validate_certs }}"
+        state: present
+        data:
+          name: "{{ __nic }}"
+          virtual_machine: "{{ __hostname }}"
+          enabled: true
+
+    - name: アドレスオブジェクト作成
+      netbox.netbox.netbox_ip_address:
+        netbox_url: "{{ netbox_url }}"
+        netbox_token: "{{ netbox_token }}"
+        validate_certs: "{{ netbox_validate_certs }}"
+        state: present
+        data:
+          address: "{{ __assigned_address }}/{{ __prefix | ansible.utils.ipaddr('prefix') }}"
+          description: "アドレス自動採番"
+          assigned_object:
+            virtual_machine: "{{ __hostname }}"
+            name: "{{ __nic }}"
+
+    - name: 作成したアドレスをプライマリIPアドレスに指定
+      netbox.netbox.netbox_virtual_machine:
+        netbox_url: "{{ netbox_url }}"
+        netbox_token: "{{ netbox_token }}"
+        validate_certs: "{{ netbox_validate_certs }}"
+        state: present
+        data:
+          name: "{{ __hostname }}"
+          primary_ip4:
+            address: "{{ __assigned_address }}/{{ __prefix | ansible.utils.ipaddr('prefix') }}"
+
+    - name: 自動採番したIPアドレスを次のジョブテンプレートで利用するためにartificatsに保存
+      set_stats:
+        data:
+          __assigned_address: "{{ __assigned_address }}"
