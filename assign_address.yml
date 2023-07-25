@@ -19,13 +19,14 @@
               validate_certs=netbox_validate_certs
             )[0].value.id
           }}
-        
+
     - name: 次の空IPアドレスを取得
       uri:
         url: "{{ netbox_url }}/api/ipam/prefixes/{{ __prefix_id }}/available-ips/?limit=1"
         method: GET
         headers:
           Authorization: "Token {{ netbox_token }}"
+        validate_certs: "{{ netbox_validate_certs }}"
       register: __next_available_address
 
     - name: IPアドレスを変数定義

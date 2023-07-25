@@ -1,5 +1,5 @@
 ---
-__hostname: "TESTSERVER"
-__cluster: "test-cluster"
-__nic: "eth0"
-__prefix: "192.168.0.0/24"
+__hostname: "TESTSERVER" # Netboxに登録するホスト名
+__cluster: "test-cluster" # ホストを登録する仮想基盤クラスタ
+__nic: "eth0" # IPアドレスを紐づけるNIC名
+__prefix: "192.168.0.0/24" # IPアドレスを払い出し元プレフィックス名
