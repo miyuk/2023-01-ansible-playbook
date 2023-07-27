@@ -11,6 +11,7 @@ Netbox を利用した IP アドレスの自動払い出しを行う Ansible Pla
 ```bash
 .
 ├── README.md  # 本ファイル
+├── docs  # Ansible Nightで発表した際の資料置き場
 ├── assign_address.yml  # Playbook本体
 ├── collections
 │   └── requirements.yml  # Playbook実行に必要なAnsible Collection一覧を記載
